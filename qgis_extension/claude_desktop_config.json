@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "drainage-ai": {
+      "command": "python",
+      "args": ["-m", "mcp_server.drainage_server"],
+      "env": {},
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
