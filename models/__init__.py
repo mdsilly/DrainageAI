@@ -9,6 +9,7 @@ from .ssl_model import SelfSupervisedModel
 from .semi_supervised_model import SemiSupervisedModel
 from .ensemble_model import EnsembleModel
 from .byol_model import BYOLModel
+from .grayscale_byol_model import GrayscaleBYOLModel
 
 __all__ = [
     'BaseModel',
@@ -18,4 +19,5 @@ __all__ = [
     'SemiSupervisedModel',
     'EnsembleModel',
     'BYOLModel',
+    'GrayscaleBYOLModel',
 ]

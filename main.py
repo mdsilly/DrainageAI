@@ -12,7 +12,7 @@ import geopandas as gpd
 from pathlib import Path
 from shapely.geometry import LineString
 
-from models import EnsembleModel, CNNModel, GNNModel, SelfSupervisedModel, SemiSupervisedModel, BYOLModel
+from models import EnsembleModel, CNNModel, GNNModel, SelfSupervisedModel, SemiSupervisedModel, BYOLModel, GrayscaleBYOLModel
 from preprocessing import DataLoader, ImageProcessor, GraphBuilder, Augmentation
 from preprocessing.fixmatch_augmentation import WeakAugmentation, StrongAugmentation
 from mcp_server import DrainageServer
@@ -32,7 +32,9 @@ def parse_args():
     detect_parser.add_argument("--indices", help="Path to spectral indices file (optional)")
     detect_parser.add_argument("--sar", help="Path to SAR imagery file (optional)")
     detect_parser.add_argument("--output", required=True, help="Path to save detection results")
-    detect_parser.add_argument("--model", default="ensemble", choices=["ensemble", "cnn", "gnn", "ssl", "semi", "byol"], help="Model type to use")
+    detect_parser.add_argument("--model", default="ensemble", 
+                              choices=["ensemble", "cnn", "gnn", "ssl", "semi", "byol", "grayscale-byol"], 
+                              help="Model type to use")
     detect_parser.add_argument("--weights", help="Path to model weights file (optional)")
     detect_parser.add_argument("--threshold", type=float, default=0.5, help="Confidence threshold for detection (0-1)")
     
@@ -377,6 +379,8 @@ def create_model(model_type):
         return SemiSupervisedModel(pretrained=True)
     elif model_type == "byol":
         return BYOLModel(fine_tuned=True)
+    elif model_type == "grayscale-byol":
+        return GrayscaleBYOLModel(fine_tuned=True)
     else:
         raise ValueError(f"Invalid model type: {model_type}")
 
@@ -396,10 +400,14 @@ def load_model(model_type, weights_path=None, with_sar=False):
     # Create model with SAR support if needed
     if model_type == "cnn" and with_sar:
         model = CNNModel(with_sar=True)
+    elif model_type == "byol" and with_sar:
+        model = BYOLModel(with_sar=True)
+    elif model_type == "grayscale-byol":
+        model = GrayscaleBYOLModel(with_sar=with_sar)
     else:
         # For other model types, SAR support is not implemented in this quick integration
-        if with_sar and model_type != "cnn":
-            print(f"Warning: SAR support is only implemented for CNN model in this quick integration. Using standard {model_type} model.")
+        if with_sar and model_type not in ["cnn", "byol", "grayscale-byol"]:
+            print(f"Warning: SAR support is only implemented for CNN, BYOL, and Grayscale-BYOL models in this integration. Using standard {model_type} model.")
         model = create_model(model_type)
     
     # Load weights if provided
