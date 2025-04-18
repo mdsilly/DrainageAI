@@ -12,7 +12,7 @@ import geopandas as gpd
 from pathlib import Path
 from shapely.geometry import LineString
 
-from models import EnsembleModel, CNNModel, GNNModel, SelfSupervisedModel, SemiSupervisedModel
+from models import EnsembleModel, CNNModel, GNNModel, SelfSupervisedModel, SemiSupervisedModel, BYOLModel
 from preprocessing import DataLoader, ImageProcessor, GraphBuilder, Augmentation
 from preprocessing.fixmatch_augmentation import WeakAugmentation, StrongAugmentation
 from mcp_server import DrainageServer
@@ -30,8 +30,9 @@ def parse_args():
     detect_parser.add_argument("--imagery", required=True, help="Path to satellite imagery file")
     detect_parser.add_argument("--elevation", help="Path to elevation data file (optional)")
     detect_parser.add_argument("--indices", help="Path to spectral indices file (optional)")
+    detect_parser.add_argument("--sar", help="Path to SAR imagery file (optional)")
     detect_parser.add_argument("--output", required=True, help="Path to save detection results")
-    detect_parser.add_argument("--model", default="ensemble", choices=["ensemble", "cnn", "gnn", "ssl", "semi"], help="Model type to use")
+    detect_parser.add_argument("--model", default="ensemble", choices=["ensemble", "cnn", "gnn", "ssl", "semi", "byol"], help="Model type to use")
     detect_parser.add_argument("--weights", help="Path to model weights file (optional)")
     detect_parser.add_argument("--threshold", type=float, default=0.5, help="Confidence threshold for detection (0-1)")
     
@@ -76,8 +77,11 @@ def detect(args):
     """
     print(f"Detecting drainage pipes in {args.imagery}...")
     
-    # Load model
-    model = load_model(args.model, args.weights)
+    # Check if SAR data is provided
+    has_sar = args.sar is not None
+    
+    # Load model with SAR support if needed
+    model = load_model(args.model, args.weights, with_sar=has_sar)
     
     # Load imagery
     with rasterio.open(args.imagery) as src:
@@ -97,9 +101,22 @@ def detect(args):
             indices = src.read()
             print(f"Loaded spectral indices with {indices.shape[0]} bands")
     
+    # Load SAR data if provided
+    sar_data = None
+    if args.sar:
+        with rasterio.open(args.sar) as src:
+            sar_data = src.read()
+            print(f"Loaded SAR data with {sar_data.shape[0]} bands")
+    
     # Preprocess data
     image_processor = ImageProcessor()
-    preprocessed_imagery = image_processor.preprocess(imagery)
+    
+    # Use combined preprocessing if SAR data is available
+    if has_sar:
+        preprocessed_imagery = image_processor.preprocess_combined(imagery, sar_data)
+        print(f"Combined optical and SAR data with {preprocessed_imagery.shape[0]} bands")
+    else:
+        preprocessed_imagery = image_processor.preprocess(imagery)
     
     # Create graph representation if needed
     graph_builder = GraphBuilder()
@@ -358,23 +375,32 @@ def create_model(model_type):
         return SelfSupervisedModel(fine_tuned=True)
     elif model_type == "semi":
         return SemiSupervisedModel(pretrained=True)
+    elif model_type == "byol":
+        return BYOLModel(fine_tuned=True)
     else:
         raise ValueError(f"Invalid model type: {model_type}")
 
 
-def load_model(model_type, weights_path=None):
+def load_model(model_type, weights_path=None, with_sar=False):
     """
     Load a DrainageAI model.
     
     Args:
         model_type: Type of model to load
         weights_path: Path to model weights file (optional)
+        with_sar: Whether to enable SAR support in the model
     
     Returns:
         DrainageAI model
     """
-    # Create model
-    model = create_model(model_type)
+    # Create model with SAR support if needed
+    if model_type == "cnn" and with_sar:
+        model = CNNModel(with_sar=True)
+    else:
+        # For other model types, SAR support is not implemented in this quick integration
+        if with_sar and model_type != "cnn":
+            print(f"Warning: SAR support is only implemented for CNN model in this quick integration. Using standard {model_type} model.")
+        model = create_model(model_type)
     
     # Load weights if provided
     if weights_path:

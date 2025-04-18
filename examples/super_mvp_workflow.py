@@ -28,6 +28,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="DrainageAI Super-MVP Workflow")
     
     parser.add_argument("--imagery", required=True, help="Path to multispectral imagery file")
+    parser.add_argument("--sar", help="Path to SAR imagery file (optional)")
     parser.add_argument("--output", required=True, help="Directory to save output files")
     parser.add_argument("--model", default="cnn", choices=["cnn", "semi", "ensemble"], help="Model type to use")
     parser.add_argument("--weights", help="Path to model weights file (optional)")
@@ -102,6 +103,11 @@ def main():
         f"--model {args.model} "
         f"--threshold {args.threshold}"
     )
+    
+    # Add SAR data if provided
+    if args.sar:
+        detect_command += f" --sar {args.sar}"
+        print(f"Including SAR data from {args.sar}")
     
     if args.weights:
         detect_command += f" --weights {args.weights}"

@@ -1,5 +1,5 @@
 """
-Image processor for satellite imagery.
+Image processor for satellite imagery and SAR data.
 """
 
 import numpy as np
@@ -8,6 +8,7 @@ import torch
 import rasterio
 from rasterio.warp import calculate_default_transform, reproject
 from rasterio.enums import Resampling
+from scipy.ndimage import median_filter
 
 
 class ImageProcessor:
@@ -260,3 +261,117 @@ class ImageProcessor:
         output = output / np.maximum(counts, 1)
         
         return output
+    
+    def preprocess_sar(self, sar_imagery, meta=None):
+        """
+        Preprocess SAR imagery.
+        
+        Args:
+            sar_imagery: SAR imagery (numpy array or path to file)
+            meta: Metadata (optional)
+            
+        Returns:
+            Preprocessed SAR imagery
+        """
+        # Load imagery if path is provided
+        if isinstance(sar_imagery, str):
+            with rasterio.open(sar_imagery) as src:
+                sar_imagery = src.read()
+                meta = src.meta
+        
+        # Convert to numpy array if needed
+        if isinstance(sar_imagery, torch.Tensor):
+            sar_imagery = sar_imagery.numpy()
+        
+        # Apply speckle filtering (basic median filter for quick implementation)
+        filtered_sar = np.zeros_like(sar_imagery)
+        for i in range(sar_imagery.shape[0]):
+            filtered_sar[i] = median_filter(sar_imagery[i], size=3)
+        
+        # Resize to target size
+        filtered_sar = self.resize(filtered_sar, self.target_size)
+        
+        # Normalize
+        if self.normalize:
+            filtered_sar = self.normalize_imagery(filtered_sar)
+        
+        # Convert to torch tensor
+        filtered_sar = torch.from_numpy(filtered_sar).float()
+        
+        return filtered_sar
+    
+    def preprocess_combined(self, optical_imagery, sar_imagery=None, meta=None):
+        """
+        Preprocess both optical and SAR imagery.
+        
+        Args:
+            optical_imagery: Optical imagery (numpy array or path to file)
+            sar_imagery: SAR imagery (numpy array or path to file)
+            meta: Metadata (optional)
+            
+        Returns:
+            Combined preprocessed imagery
+        """
+        # Preprocess optical imagery
+        processed_optical = self.preprocess(optical_imagery, meta)
+        
+        # If no SAR imagery, return optical only
+        if sar_imagery is None:
+            return processed_optical
+        
+        # Preprocess SAR imagery
+        processed_sar = self.preprocess_sar(sar_imagery, meta)
+        
+        # Combine optical and SAR
+        combined = torch.cat([processed_optical, processed_sar], dim=0)
+        
+        return combined
+    
+    def calculate_sar_indices(self, sar_imagery, optical_imagery=None):
+        """
+        Calculate SAR-specific indices for drainage detection.
+        
+        Args:
+            sar_imagery: SAR imagery (VV and VH polarizations)
+            optical_imagery: Optional optical imagery for combined indices
+            
+        Returns:
+            Dictionary of SAR indices
+        """
+        # Ensure numpy arrays
+        if isinstance(sar_imagery, torch.Tensor):
+            sar_imagery = sar_imagery.numpy()
+        
+        if optical_imagery is not None and isinstance(optical_imagery, torch.Tensor):
+            optical_imagery = optical_imagery.numpy()
+        
+        # Extract polarizations (assuming VV is first band, VH is second)
+        if sar_imagery.shape[0] >= 2:
+            vv = sar_imagery[0]
+            vh = sar_imagery[1]
+        else:
+            # If only one band, assume it's VV
+            vv = sar_imagery[0]
+            vh = None
+        
+        indices = {}
+        
+        # Calculate polarization ratio (sensitive to soil moisture)
+        if vh is not None:
+            pol_ratio = vv / (vh + 1e-8)
+            indices['pol_ratio'] = pol_ratio
+            
+            # Calculate polarization difference (highlights linear features)
+            pol_diff = vv - vh
+            indices['pol_diff'] = pol_diff
+        
+        # If optical imagery is available, calculate combined indices
+        if optical_imagery is not None and optical_imagery.shape[0] >= 4:
+            # Extract NIR band (assuming band 4 is NIR)
+            nir = optical_imagery[3]
+            
+            # Combined SAR-optical index for moisture
+            combined_moisture = (nir - vv) / (nir + vv + 1e-8)
+            indices['combined_moisture'] = combined_moisture
+        
+        return indices

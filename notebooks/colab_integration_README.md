@@ -4,7 +4,11 @@ This document provides instructions for using DrainageAI with Google Colab to le
 
 ## Overview
 
-Google Colab provides free access to GPU resources, which can significantly speed up the DrainageAI workflow. The `drainageai_colab_demo.ipynb` notebook in this directory provides a complete implementation of the DrainageAI super-MVP workflow in Google Colab.
+Google Colab provides free access to GPU resources, which can significantly speed up the DrainageAI workflow. Three notebooks are provided in this directory:
+
+1. `drainageai_colab_demo.ipynb` - The standard DrainageAI super-MVP workflow
+2. `drainageai_colab_demo_byol.ipynb` - Enhanced workflow with BYOL self-supervised learning for few-shot learning and SAR data integration
+3. `drainageai_colab_demo_unlabeled.ipynb` - Workflow optimized for unlabeled data only, with optional steps for labeled data and SAR integration
 
 ## Setup Instructions
 
@@ -96,10 +100,74 @@ If you encounter issues with the notebook:
 4. **Use appropriate thresholds**: Adjust the detection threshold based on your imagery and requirements
 5. **Try different models**: Compare results from different models (CNN, semi-supervised, ensemble)
 
+## BYOL Workflow for Few-Shot Learning
+
+The `drainageai_colab_demo_byol.ipynb` notebook provides an enhanced workflow that uses BYOL (Bootstrap Your Own Latent) self-supervised learning to work with very few labeled examples.
+
+### Key Features
+
+1. **Self-supervised pretraining**: BYOL learns from unlabeled data without requiring any labels
+2. **Few-shot learning**: Fine-tune with as few as 5 labeled examples
+3. **SAR data integration**: Combine optical and SAR imagery for improved detection
+4. **Multi-view learning**: Learn from different views of the same scene
+
+### When to Use BYOL
+
+The BYOL workflow is particularly useful in these scenarios:
+
+- You have very limited labeled data (less than 10 labeled examples)
+- You have access to unlabeled data from the same domain
+- You need to detect drainage pipes in challenging conditions (cloud cover, no recent rainfall)
+- You have access to both optical and SAR imagery
+
+### BYOL Workflow Steps
+
+1. **Upload unlabeled and labeled data**: Provide unlabeled imagery for pretraining and a small set of labeled examples for fine-tuning
+2. **BYOL pretraining**: Train the model on unlabeled data to learn general representations
+3. **Fine-tuning**: Fine-tune the pretrained model on a small set of labeled examples
+4. **Inference**: Run inference on new imagery
+5. **SAR integration**: Optionally integrate SAR data for improved detection
+
+## Unlabeled Data Workflow
+
+The `drainageai_colab_demo_unlabeled.ipynb` notebook is specifically designed for scenarios where you only have unlabeled data available, with optional steps for incorporating labeled data or SAR imagery if they become available later.
+
+### Key Features
+
+1. **Focus on unlabeled data**: Optimized workflow for scenarios with no labeled examples
+2. **Interactive decision points**: User prompts to determine whether to include labeled data or SAR
+3. **Modular approach**: Run only the parts of the workflow that are relevant to your data
+4. **Flexible pipeline**: Start with unlabeled data and add labeled data or SAR when available
+
+### When to Use the Unlabeled Data Workflow
+
+This workflow is ideal in these scenarios:
+
+- You have no labeled drainage pipe examples yet
+- You're starting a new project and want to establish a baseline
+- You plan to collect labeled data in the future
+- You want to explore what's possible with only unlabeled data
+
+### Unlabeled Data Workflow Steps
+
+1. **Upload unlabeled data**: Provide unlabeled imagery for pretraining
+2. **BYOL pretraining**: Train the model on unlabeled data to learn general representations
+3. **Inference with pretrained model**: Run inference using only the pretrained model
+4. **Optional labeled data integration**: Add labeled data for fine-tuning if available
+5. **Optional SAR integration**: Add SAR data if available
+
+### Benefits of Starting with Unlabeled Data
+
+- **No annotation required**: Get started without the time-consuming process of creating labeled examples
+- **Establish baseline performance**: See what's possible with self-supervised learning alone
+- **Incremental improvement**: Add labeled data or SAR later to improve results
+- **Efficient resource use**: Focus annotation efforts on the most valuable examples
+
 ## Next Steps
 
 After successfully running the demo in Colab, consider:
 
 1. **Training on your own data**: Use the training scripts to train models on your own labeled data
 2. **Implementing the full ensemble model**: Explore the full DrainageAI capabilities
-3. **Setting up local GPU processing**: For production use, consider setting up local GPU processing
+3. **Using the BYOL approach**: Try the BYOL workflow if you have limited labeled data
+4. **Setting up local GPU processing**: For production use, consider setting up local GPU processing

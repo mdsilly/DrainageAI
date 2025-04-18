@@ -8,6 +8,7 @@ from .gnn_model import GNNModel
 from .ssl_model import SelfSupervisedModel
 from .semi_supervised_model import SemiSupervisedModel
 from .ensemble_model import EnsembleModel
+from .byol_model import BYOLModel
 
 __all__ = [
     'BaseModel',
@@ -16,4 +17,5 @@ __all__ = [
     'SelfSupervisedModel',
     'SemiSupervisedModel',
     'EnsembleModel',
+    'BYOLModel',
 ]

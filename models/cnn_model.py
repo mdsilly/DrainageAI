@@ -83,11 +83,44 @@ class UNetDecoder(nn.Module):
 class CNNModel(BaseModel):
     """CNN model for drainage pipe detection using ResNet backbone and U-Net decoder."""
     
-    def __init__(self, num_classes=1, pretrained=True):
+    def __init__(self, num_classes=1, pretrained=True, with_sar=False):
         super(CNNModel, self).__init__()
         
         # Load pretrained ResNet-50 as encoder
         self.encoder = models.resnet50(pretrained=pretrained)
+        
+        # Flag to indicate if SAR data is used
+        self.with_sar = with_sar
+        
+        # Modify first convolutional layer if using SAR data
+        if with_sar:
+            # Get the first conv layer
+            first_conv = self.encoder.conv1
+            
+            # Create a new conv layer with additional input channels for SAR
+            # ResNet's first conv layer has 64 output channels, kernel size 7, stride 2, padding 3
+            new_conv = nn.Conv2d(
+                in_channels=3 + 1,  # RGB + 1 SAR channel
+                out_channels=64,
+                kernel_size=7,
+                stride=2,
+                padding=3,
+                bias=False
+            )
+            
+            # Copy weights from the original conv layer for the RGB channels
+            with torch.no_grad():
+                new_conv.weight[:, :3] = first_conv.weight
+                
+                # Initialize the SAR channel weights with small random values
+                nn.init.kaiming_normal_(
+                    new_conv.weight[:, 3:],
+                    mode='fan_out',
+                    nonlinearity='relu'
+                )
+            
+            # Replace the first conv layer
+            self.encoder.conv1 = new_conv
         
         # Remove the final fully connected layer
         self.encoder = nn.Sequential(*list(self.encoder.children())[:-2])

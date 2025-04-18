@@ -72,13 +72,62 @@ Conda is recommended for easier installation of geospatial dependencies like GDA
 
 For running DrainageAI with GPU acceleration without local setup:
 
-1. Upload the `notebooks/drainageai_colab_demo.ipynb` notebook to Google Colab
+1. Choose one of the following notebooks to upload to Google Colab:
+   - `notebooks/drainageai_colab_demo.ipynb` - Standard workflow
+   - `notebooks/drainageai_colab_demo_byol.ipynb` - BYOL workflow with SAR integration
+   - `notebooks/drainageai_colab_demo_unlabeled.ipynb` - Workflow optimized for unlabeled data only
 2. Follow the instructions in the notebook to run the complete workflow
 3. See `notebooks/colab_integration_README.md` for detailed instructions
 
 ## Usage
 
-[Usage instructions will be added as the project develops]
+### Basic Workflow
+
+The basic workflow for using DrainageAI consists of the following steps:
+
+1. **Calculate spectral indices** from multispectral imagery
+2. **Detect drainage pipes** using the trained model
+3. **Vectorize the results** for use in GIS software
+
+You can run the complete workflow using the super-MVP example script:
+
+```bash
+python examples/super_mvp_workflow.py --imagery <path_to_imagery> --output <output_directory>
+```
+
+### SAR Integration
+
+DrainageAI supports Synthetic Aperture Radar (SAR) data integration for improved drainage pipe detection, especially in challenging conditions:
+
+```bash
+python examples/sar_integration_example.py --imagery <path_to_optical_imagery> --sar <path_to_sar_imagery> --output <output_directory>
+```
+
+Benefits of SAR integration:
+- Weather-independent detection (works through cloud cover)
+- Improved performance when no recent rainfall has occurred
+- Enhanced detection of subsurface drainage features
+- Reduced false positives from surface water features
+
+### Command Line Interface
+
+DrainageAI provides a command-line interface for individual operations:
+
+```bash
+# Calculate spectral indices
+python main.py indices --imagery <path_to_imagery> --output <output_path>
+
+# Detect drainage pipes
+python main.py detect --imagery <path_to_imagery> --indices <path_to_indices> --output <output_path>
+
+# Detect with SAR data
+python main.py detect --imagery <path_to_imagery> --indices <path_to_indices> --sar <path_to_sar> --output <output_path>
+
+# Vectorize results
+python main.py vectorize --input <path_to_detection_results> --output <output_path>
+```
+
+For more examples and detailed usage instructions, see the `examples` directory.
 
 ## Development
 
