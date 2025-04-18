@@ -1,0 +1,49 @@
+name: drainageai
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  # Python version
+  - python=3.9
+  
+  # Core dependencies
+  - numpy>=1.20.0
+  - pandas>=1.3.0
+  - matplotlib>=3.4.0
+  - scikit-learn>=1.0.0
+  
+  # Deep learning
+  - pytorch>=1.10.0
+  - torchvision>=0.11.0
+  - pytorch-lightning>=1.5.0
+  - tensorboard>=2.8.0
+  
+  # Geospatial processing
+  - rasterio>=1.2.0
+  - geopandas>=0.10.0
+  - shapely>=1.8.0
+  - pyproj>=3.2.0
+  - gdal>=3.3.0
+  - scikit-image>=0.18.0
+  
+  # Image processing
+  - opencv>=4.5.0
+  - pillow>=8.3.0
+  
+  # Utilities
+  - tqdm>=4.62.0
+  - pyyaml>=6.0
+  - pytest>=6.2.0
+  - jupyter>=1.0.0
+  
+  # Pip dependencies (for packages not available in conda)
+  - pip
+  - pip:
+    - torch-geometric>=2.0.0
+    - modelcontextprotocol>=0.1.0
+
+variables:
+  # Environment variables for GDAL
+  GDAL_DATA: $CONDA_PREFIX/share/gdal
+  PROJ_LIB: $CONDA_PREFIX/share/proj

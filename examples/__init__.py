@@ -1,0 +1,3 @@
+"""
+DrainageAI examples package.
+"""
