@@ -8,8 +8,12 @@ with few or no labeled images for drainage pipe detection:
 2. Fine-tuning with very few labeled examples
 3. Inference and evaluation
 
+The workflow handles images of different sizes using one of two methods:
+- 'dataset': Resize all images to a fixed size in the dataset class
+- 'collate': Use a custom collate function to resize images during batch creation
+
 Usage:
-    python byol_mvp_workflow.py --optical-dir <path_to_optical_imagery> --sar-dir <path_to_sar_imagery> --output-dir <output_directory>
+    python byol_mvp_workflow.py --optical-dir <path_to_optical_imagery> --sar-dir <path_to_sar_imagery> --output-dir <output_directory> --resize-method <dataset|collate>
 """
 
 import os
@@ -66,6 +70,8 @@ def parse_args():
     parser.add_argument("--model-path", help="Path to pretrained model for inference")
     parser.add_argument("--test-image", help="Path to test image for inference")
     parser.add_argument("--test-sar", help="Path to test SAR image for inference")
+    parser.add_argument("--resize-method", choices=["dataset", "collate"], default="collate",
+                      help="Method to use for resizing images: 'dataset' (resize in dataset) or 'collate' (resize during batching)")
     
     return parser.parse_args()
 
@@ -289,7 +295,8 @@ def main():
             output_dir=args.output_dir,
             num_labeled=args.num_labeled,
             byol_epochs=args.byol_epochs,
-            finetune_epochs=args.finetune_epochs
+            finetune_epochs=args.finetune_epochs,
+            resize_method=args.resize_method  # Use the specified resize method
         )
         
         # Use the fine-tuned model for inference if available
@@ -399,10 +406,10 @@ def main():
     
     print("\nThese files can now be loaded into ArcGIS or QGIS for visualization and analysis.")
     print("\nExample command for full pipeline with few labeled images:")
-    print(f"python examples/byol_mvp_workflow.py --optical-dir data/imagery --sar-dir data/sar --label-dir data/labels --output-dir results --num-labeled 5 --byol-epochs 50 --finetune-epochs 10")
+    print(f"python examples/byol_mvp_workflow.py --optical-dir data/imagery --sar-dir data/sar --label-dir data/labels --output-dir results --num-labeled 5 --byol-epochs 50 --finetune-epochs 10 --resize-method collate")
     
     print("\nExample command for inference only:")
-    print(f"python examples/byol_mvp_workflow.py --inference-only --model-path results/byol_finetuned.pth --test-image data/test/image.tif --test-sar data/test/sar.tif --output-dir results")
+    print(f"python examples/byol_mvp_workflow.py --inference-only --model-path results/byol_finetuned.pth --test-image data/test/image.tif --test-sar data/test/sar.tif --output-dir results --resize-method collate")
 
 
 if __name__ == "__main__":
