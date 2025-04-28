@@ -8,6 +8,7 @@ It supports training with few or no labeled images.
 import os
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset, Subset
 import numpy as np
@@ -19,12 +20,13 @@ from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
 from models.byol_model import BYOLModel
 from preprocessing.augmentation import Augmentation
+from .data_utils import custom_collate
 
 
 class MultiViewDataset(Dataset):
     """Dataset for multi-view BYOL training with optical and SAR imagery."""
     
-    def __init__(self, optical_paths, sar_paths=None, label_paths=None, transform=None):
+    def __init__(self, optical_paths, sar_paths=None, label_paths=None, transform=None, target_size=(256, 256)):
         """
         Initialize the dataset.
         
@@ -33,11 +35,13 @@ class MultiViewDataset(Dataset):
             sar_paths: List of paths to SAR imagery (optional)
             label_paths: List of paths to label masks (optional)
             transform: Data augmentation transforms
+            target_size: Target size for resizing images (height, width)
         """
         self.optical_paths = optical_paths
         self.sar_paths = sar_paths if sar_paths is not None else [None] * len(optical_paths)
         self.label_paths = label_paths if label_paths is not None else [None] * len(optical_paths)
         self.transform = transform
+        self.target_size = target_size
         
         # Ensure all lists have the same length
         assert len(self.optical_paths) == len(self.sar_paths) == len(self.label_paths), \
@@ -68,6 +72,19 @@ class MultiViewDataset(Dataset):
         optical = torch.from_numpy(optical).float()
         if sar is not None:
             sar = torch.from_numpy(sar).float()
+        
+        # Resize all images to the target size if specified
+        if self.target_size is not None:
+            optical = F.interpolate(optical.unsqueeze(0), size=self.target_size, 
+                                   mode='bilinear', align_corners=False).squeeze(0)
+            
+            if sar is not None:
+                sar = F.interpolate(sar.unsqueeze(0), size=self.target_size, 
+                                   mode='bilinear', align_corners=False).squeeze(0)
+            
+            if label is not None:
+                label = F.interpolate(label.unsqueeze(0).unsqueeze(0), size=self.target_size, 
+                                     mode='nearest').squeeze(0).squeeze(0)
         
         # Apply transformations
         if self.transform:
@@ -363,7 +380,9 @@ def train_byol_pipeline(
     byol_lr=0.0001,
     finetune_lr=0.0001,
     val_split=0.2,
-    seed=42
+    seed=42,
+    resize_method='dataset',  # 'dataset' or 'collate'
+    target_size=(256, 256)
 ):
     """
     Complete pipeline for BYOL training and fine-tuning.
@@ -443,19 +462,31 @@ def train_byol_pipeline(
     # Create augmentation transform
     transform = transforms.Compose([
         # Add your custom augmentations here
-        # For example:
-        # transforms.RandomHorizontalFlip(),
-        # transforms.RandomVerticalFlip(),
-        # transforms.RandomRotation(30),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
     ])
     
     # Create dataset
-    dataset = MultiViewDataset(
-        optical_paths=optical_files,
-        sar_paths=matched_sar_files,
-        label_paths=matched_label_files,
-        transform=transform
-    )
+    if resize_method == 'dataset':
+        # Resize images in the dataset
+        dataset = MultiViewDataset(
+            optical_paths=optical_files,
+            sar_paths=matched_sar_files,
+            label_paths=matched_label_files,
+            transform=transform,
+            target_size=target_size
+        )
+        collate_fn = None
+    else:
+        # Use custom collate function to resize images during batching
+        dataset = MultiViewDataset(
+            optical_paths=optical_files,
+            sar_paths=matched_sar_files,
+            label_paths=matched_label_files,
+            transform=transform,
+            target_size=None  # Don't resize in the dataset
+        )
+        collate_fn = custom_collate
     
     # Split labeled data into train and validation
     if labeled_indices:
@@ -469,15 +500,15 @@ def train_byol_pipeline(
         
         # Create data loaders
         train_labeled_loader = DataLoader(
-            train_labeled_dataset, batch_size=batch_size, shuffle=True
+            train_labeled_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn
         )
-        val_loader = DataLoader(val_dataset, batch_size=batch_size)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_fn)
     else:
         train_labeled_loader = None
         val_loader = None
     
     # Create data loader for all data (for BYOL pretraining)
-    train_all_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    train_all_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     
     # Initialize model
     with_sar = any(sar is not None for sar in matched_sar_files)
@@ -546,8 +577,15 @@ if __name__ == "__main__":
     parser.add_argument("--val-split", type=float, default=0.2, help="Validation split ratio")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--no-pretrained", action="store_true", help="Don't use pretrained weights")
+    parser.add_argument("--resize-method", choices=["dataset", "collate"], default="dataset", 
+                      help="Method to use for resizing images: 'dataset' (resize in dataset) or 'collate' (resize during batching)")
+    parser.add_argument("--target-size", type=str, default="256,256", 
+                      help="Target size for resizing images (height,width)")
     
     args = parser.parse_args()
+    
+    # Parse target size
+    target_size = tuple(map(int, args.target_size.split(',')))
     
     train_byol_pipeline(
         optical_dir=args.optical_dir,
@@ -562,5 +600,7 @@ if __name__ == "__main__":
         byol_lr=args.byol_lr,
         finetune_lr=args.finetune_lr,
         val_split=args.val_split,
-        seed=args.seed
+        seed=args.seed,
+        resize_method=args.resize_method,
+        target_size=target_size
     )
