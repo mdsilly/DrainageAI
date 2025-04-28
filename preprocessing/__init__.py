@@ -7,6 +7,7 @@ from .image_processor import ImageProcessor
 from .graph_builder import GraphBuilder
 from .augmentation import Augmentation
 from .fixmatch_augmentation import WeakAugmentation, StrongAugmentation, create_augmentation_pair
+from .calculate_indices import calculate_indices
 
 __all__ = [
     'DataLoader',
@@ -16,4 +17,5 @@ __all__ = [
     'WeakAugmentation',
     'StrongAugmentation',
     'create_augmentation_pair',
+    'calculate_indices',
 ]

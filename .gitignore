@@ -53,3 +53,5 @@ logs/
 Thumbs.db
 
 data/
+
+*.parquet
