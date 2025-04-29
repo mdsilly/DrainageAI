@@ -43,7 +43,8 @@ class GeospatialDataset(Dataset):
         imagery = imagery / 255.0  # Simple normalization
         
         # Load labels if available
-        if self.label_paths is not None:
+        labels = None
+        if self.label_paths is not None and idx < len(self.label_paths) and self.label_paths[idx] is not None:
             # For vector data (e.g., shapefiles)
             if self.label_paths[idx].endswith('.shp'):
                 labels = self._load_vector_labels(self.label_paths[idx], meta)
@@ -52,8 +53,6 @@ class GeospatialDataset(Dataset):
                 with rasterio.open(self.label_paths[idx]) as src:
                     labels = src.read(1)  # Assume single band for labels
                 labels = torch.from_numpy(labels).float()
-        else:
-            labels = None
         
         # Apply transforms if available
         if self.transform:

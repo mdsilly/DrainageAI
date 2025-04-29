@@ -185,7 +185,7 @@ def train(args):
     
     # Find training data
     imagery_paths = data_loader.find_data_files(
-        os.path.join(args.data, "imagery"),
+        args.data,
         [".tif", ".tiff"]
     )
     
@@ -219,25 +219,33 @@ def train(args):
         for batch in train_loader:
             # Get data
             imagery = batch["imagery"]
-            labels = batch["labels"]
             
-            # Zero gradients
-            optimizer.zero_grad()
-            
-            # Forward pass
-            output = model(imagery)
-            
-            # Calculate loss
-            loss = criterion(output, labels)
-            
-            # Backward pass
-            loss.backward()
-            
-            # Update weights
-            optimizer.step()
-            
-            # Update loss
-            train_loss += loss.item()
+            # Check if labels are available
+            if "labels" in batch:
+                labels = batch["labels"]
+                
+                # Zero gradients
+                optimizer.zero_grad()
+                
+                # Forward pass
+                output = model(imagery)
+                
+                # Calculate loss
+                loss = criterion(output, labels)
+                
+                # Backward pass
+                loss.backward()
+                
+                # Update weights
+                optimizer.step()
+                
+                # Update loss
+                train_loss += loss.item()
+            else:
+                # If no labels, just do a forward pass (for demonstration)
+                with torch.no_grad():
+                    output = model(imagery)
+                print("Warning: No labels found in batch. Skipping loss calculation.")
         
         # Print progress
         print(f"Epoch {epoch+1}/{args.epochs}, Loss: {train_loss/len(train_loader):.4f}")
