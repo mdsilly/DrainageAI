@@ -181,7 +181,7 @@ def train(args):
     print(f"Training {args.model} model on data from {args.data}...")
     
     # Create data loader
-    data_loader = DataLoader(args.data, batch_size=args.batch_size)
+    data_loader = DataLoader(data_dir=args.data, batch_size=args.batch_size)
     
     # Find training data
     imagery_paths = data_loader.find_data_files(
